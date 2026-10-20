@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>한곳 색인</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1d2129;
+    --muted: #6b7280;
+    --line: #e3e6ea;
+    --accent: #2f6fed;
+    --accent-ink: #ffffff;
+    --chip: #eceff3;
+    --warn-bg: #fff5e0;
+    --warn-ink: #8a5a00;
+    --danger: #d93a3a;
+    --mark: #fff0a8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171b;
+      --card: #1f2228;
+      --text: #e8eaed;
+      --muted: #9aa0a8;
+      --line: #30343b;
+      --accent: #5b8ff9;
+      --chip: #2a2e35;
+      --warn-bg: #3a2f17;
+      --warn-ink: #f2c66d;
+      --danger: #ff6b6b;
+      --mark: #5c4d00;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 120px; }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg);
+    padding: 14px 0 10px;
+  }
+  .brand { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  h1 { font-size: 20px; margin: 0; }
+  .mode { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .mode.local { color: var(--warn-ink); }
+  .search {
+    width: 100%; font-size: 17px; padding: 12px 14px;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: var(--card); color: var(--text); outline: none;
+  }
+  .search:focus { border-color: var(--accent); }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; border: 0; border-radius: 999px; padding: 7px 13px;
+    background: var(--chip); color: var(--text); font-size: 14px; cursor: pointer;
+  }
+  .chip.on { background: var(--accent); color: var(--accent-ink); }
+  .count { font-size: 13px; color: var(--muted); margin: 8px 2px; }
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px; cursor: pointer;
+  }
+  .card.open { border-color: var(--accent); cursor: default; }
+  .card h2 { font-size: 17px; margin: 0 0 6px; }
+  .where { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; margin-bottom: 6px; }
+  .tag { background: var(--chip); border-radius: 6px; padding: 1px 8px; font-weight: 600; font-size: 13px; }
+  .detail { color: var(--text); }
+  .detail a { color: var(--accent); }
+  .summary { color: var(--muted); font-size: 15px; white-space: pre-line; margin: 0; }
+  .date { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn {
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 10px; padding: 10px 14px; font-size: 15px; cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn.danger { color: var(--danger); }
+  .btn:disabled { opacity: .5; }
+  .empty { text-align: center; color: var(--muted); padding: 48px 0; }
+  .fab {
+    position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+    border: 0; border-radius: 999px; padding: 15px 22px;
+    background: var(--accent); color: var(--accent-ink); font-size: 16px; font-weight: 700;
+    box-shadow: 0 6px 18px rgba(0,0,0,.18); cursor: pointer; z-index: 10;
+  }
+  /* 등록 화면 */
+  .sheet { position: fixed; inset: 0; background: var(--bg); z-index: 20; overflow-y: auto; display: none; }
+  .sheet.show { display: block; }
+  .sheet .wrap { padding-top: 14px; }
+  .sheet-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .notice {
+    background: var(--warn-bg); color: var(--warn-ink);
+    border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; margin-bottom: 14px;
+  }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
+  label .req { color: var(--danger); }
+  input[type=text], select, textarea {
+    width: 100%; font-size: 16px; padding: 11px 12px;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--card); color: var(--text); font-family: inherit;
+  }
+  textarea { min-height: 96px; resize: vertical; }
+  .locs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .locs .chip { padding: 9px 14px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .form-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .form-actions .btn { flex: 1; padding: 13px; }
+  .card form label:first-child { margin-top: 0; }
+  .toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+    background: #222; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px;
+    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30;
+  }
+  .toast.show { opacity: .95; }
+</style>
+</head>
+<body>
+
+<!-- 화면 1. 검색·목록 -->
+<div class="wrap" id="listView">
+  <header>
+    <div class="brand">
+      <h1>한곳 색인</h1>
+      <span class="mode" id="mode"></span>
+    </div>
+    <input class="search" id="q" type="search" placeholder="검색어 입력 (제목·위치·내용)" autocomplete="off">
+    <div class="chips" id="filters"></div>
+  </header>
+  <div class="count" id="count"></div>
+  <div class="list" id="list"></div>
+</div>
+<button class="fab" id="addBtn">＋ 새 자료 등록</button>
+
+<!-- 화면 2. 등록 -->
+<div class="sheet" id="addView">
+  <div class="wrap">
+    <div class="sheet-top">
+      <h1>새 자료 등록</h1>
+      <button class="btn" id="cancelAdd">닫기</button>
+    </div>
+    <div class="notice">⚠ 비밀·대외비 내용은 적지 말고 위치만 기록하세요.</div>
+    <form id="addForm"></form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const LOCATIONS = ['노션', '카톡', '메신저', '수첩', '출력본', 'PC 폴더', '인터넷', '기타'];
+const LS_KEY = 'hangot-index-items';
+
+let items = [];
+let serverMode = false;
+let filter = '전체';
+let openId = null;
+let editingId = null;
+
+const $ = (id) => document.getElementById(id);
+
+// ---------- 저장소 (서버 우선, 안 되면 이 브라우저에 저장) ----------
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error('요청 실패 (' + res.status + ')');
+  return res.status === 204 ? null : res.json();
+}
+
+function lsLoad() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
+}
+function lsSave() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(items)); } catch {}
+}
+
+async function load() {
+  try {
+    if (location.protocol === 'file:') throw new Error('file');
+    const data = await api('GET', '/api/items');
+    items = Array.isArray(data) ? data : [];
+    serverMode = true;
+  } catch {
+    items = lsLoad();
+    serverMode = false;
+  }
+  $('mode').textContent = serverMode ? '● PC·휴대폰 공용 저장' : '● 이 브라우저에만 저장';
+  $('mode').className = 'mode' + (serverMode ? '' : ' local');
+  render();
+}
+
+async function createItem(data) {
+  if (serverMode) {
+    items.push(await api('POST', '/api/items', data));
+  } else {
+    const now = new Date().toISOString();
+    items.push({ id: Date.now().toString(36), ...data, createdAt: now, updatedAt: now });
+    lsSave();
+  }
+}
+async function updateItem(id, data) {
+  const i = items.findIndex((x) => x.id === id);
+  if (serverMode) {
+    items[i] = await api('PUT', '/api/items/' + id, data);
+  } else {
+    items[i] = { ...items[i], ...data, updatedAt: new Date().toISOString() };
+    lsSave();
+  }
+}
+async function deleteItem(id) {
+  if (serverMode) await api('DELETE', '/api/items/' + id);
+  items = items.filter((x) => x.id !== id);
+  if (!serverMode) lsSave();
+}
+
+// ---------- 화면 그리기 ----------
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function highlight(text, q) {
+  const safe = esc(text);
+  if (!q) return safe;
+  const re = new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  return safe.replace(re, (m) => '<mark>' + m + '</mark>');
+}
+function detailHtml(text, q) {
+  const m = String(text || '').match(/^(https?:\/\/\S+)$/);
+  if (m) return '<a href="' + esc(m[1]) + '" target="_blank" rel="noopener">' + highlight(m[1], q) + '</a>';
+  return highlight(text, q);
+}
+function fmtDate(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0');
+}
+
+function renderFilters() {
+  const counts = {};
+  items.forEach((x) => (counts[x.location] = (counts[x.location] || 0) + 1));
+  $('filters').innerHTML = ['전체', ...LOCATIONS]
+    .map((l) => {
+      const n = l === '전체' ? items.length : counts[l] || 0;
+      return '<button class="chip' + (filter === l ? ' on' : '') + '" data-f="' + esc(l) + '">' + esc(l) + ' ' + n + '</button>';
+    })
+    .join('');
+}
+
+function formFields(v) {
+  v = v || {};
+  return (
+    '<label>제목 <span class="req">*</span></label>' +
+    '<input type="text" name="title" required maxlength="200" placeholder="예: 대드론 교육계획 초안" value="' + esc(v.title) + '">' +
+    '<label>보관 위치 <span class="req">*</span></label>' +
+    '<div class="locs">' +
+    LOCATIONS.map((l) => '<button type="button" class="chip' + ((v.location || '노션') === l ? ' on' : '') + '" data-loc="' + esc(l) + '">' + esc(l) + '</button>').join('') +
+    '</div><input type="hidden" name="location" value="' + esc(v.location || '노션') + '">' +
+    '<label>위치 상세</label>' +
+    '<input type="text" name="detail" maxlength="500" placeholder="예: 수첩 3월호 12쪽 / 파란 바인더 2번 / 노션 링크" value="' + esc(v.detail) + '">' +
+    '<label>핵심 내용</label>' +
+    '<textarea name="summary" maxlength="2000" placeholder="열어보지 않아도 알 수 있게 2~3줄 요약. 검색할 단어를 여기에 적어 두세요.">' + esc(v.summary) + '</textarea>'
+  );
+}
+
+function render() {
+  renderFilters();
+  const q = $('q').value.trim();
+  const ql = q.toLowerCase();
+  const list = items
+    .filter((x) => filter === '전체' || x.location === filter)
+    .filter((x) => !ql || [x.title, x.location, x.detail, x.summary].some((f) => String(f || '').toLowerCase().includes(ql)))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+
+  $('count').textContent = q || filter !== '전체' ? list.length + '건 찾음' : '전체 ' + list.length + '건 · 최신순';
+
+  if (!list.length) {
+    $('list').innerHTML = '<div class="empty">' + (items.length ? '찾는 자료가 없습니다.' : '아직 등록한 자료가 없습니다.<br>오른쪽 아래 버튼으로 등록해 보세요.') + '</div>';
+    return;
+  }
+
+  $('list').innerHTML = list
+    .map((x) => {
+      if (x.id === editingId) {
+        return '<div class="card open" data-id="' + esc(x.id) + '"><form class="editForm">' + formFields(x) +
+          '<div class="form-actions"><button type="button" class="btn" data-act="cancelEdit">취소</button>' +
+          '<button class="btn primary">저장</button></div></form></div>';
+      }
+      const open = x.id === openId;
+      return (
+        '<div class="card' + (open ? ' open' : '') + '" data-id="' + esc(x.id) + '">' +
+        '<h2>' + highlight(x.title, q) + '</h2>' +
+        '<div class="where"><span class="tag">' + highlight(x.location, q) + '</span>' +
+        (x.detail ? '<span class="detail">' + detailHtml(x.detail, q) + '</span>' : '') + '</div>' +
+        (x.summary ? '<p class="summary">' + highlight(x.summary, q) + '</p>' : '') +
+        '<div class="date">등록 ' + fmtDate(x.createdAt) + '</div>' +
+        (open
+          ? '<div class="actions"><button class="btn" data-act="edit">수정</button>' +
+            '<button class="btn danger" data-act="delete">삭제</button>' +
+            '<button class="btn" data-act="close" style="margin-left:auto">닫기</button></div>'
+          : '') +
+        '</div>'
+      );
+    })
+    .join('');
+}
+
+function readForm(form) {
+  const fd = new FormData(form);
+  return {
+    title: String(fd.get('title') || '').trim(),
+    location: String(fd.get('location') || '기타'),
+    detail: String(fd.get('detail') || '').trim(),
+    summary: String(fd.get('summary') || '').trim(),
+  };
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ---------- 이벤트 ----------
+$('q').addEventListener('input', render);
+
+$('filters').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-f]');
+  if (!b) return;
+  filter = b.dataset.f;
+  render();
+});
+
+// 보관 위치 버튼 (등록/수정 폼 공용)
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-loc]');
+  if (!b) return;
+  const form = b.closest('form');
+  form.querySelectorAll('[data-loc]').forEach((x) => x.classList.toggle('on', x === b));
+  form.elements.location.value = b.dataset.loc;
+});
+
+$('list').addEventListener('click', async (e) => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const id = card.dataset.id;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (e.target.closest('a')) return;
+
+  if (act === 'close') { openId = null; render(); return; }
+  if (act === 'edit') { editingId = id; render(); return; }
+  if (act === 'cancelEdit') { editingId = null; render(); return; }
+  if (act === 'delete') {
+    const item = items.find((x) => x.id === id);
+    if (!confirm('"' + item.title + '" 자료를 삭제할까요?')) return;
+    try { await deleteItem(id); openId = null; render(); toast('삭제했습니다'); }
+    catch (err) { alert('삭제하지 못했습니다: ' + err.message); }
+    return;
+  }
+  if (editingId === id) return;
+  openId = openId === id ? null : id;
+  render();
+});
+
+$('list').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const id = form.closest('.card').dataset.id;
+  const data = readForm(form);
+  if (!data.title) return;
+  try { await updateItem(id, data); editingId = null; render(); toast('수정했습니다'); }
+  catch (err) { alert('저장하지 못했습니다: ' + err.message); }
+});
+
+function openAdd() {
+  $('addForm').innerHTML = formFields() + '<div class="form-actions"><button class="btn primary">저장</button></div>';
+  $('addView').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => $('addForm').elements.title.focus(), 50);
+}
+function closeAdd() {
+  $('addView').classList.remove('show');
+  document.body.style.overflow = '';
+}
+$('addBtn').addEventListener('click', openAdd);
+$('cancelAdd').addEventListener('click', closeAdd);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('addView').classList.contains('show')) closeAdd(); });
+
+$('addForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = readForm(e.target);
+  if (!data.title) return;
+  const btn = e.target.querySelector('.btn.primary');
+  btn.disabled = true;
+  try {
+    await createItem(data);
+    closeAdd();
+    $('q').value = '';
+    filter = '전체';
+    openId = null;
+    render();
+    window.scrollTo(0, 0);
+    toast('등록했습니다');
+  } catch (err) {
+    alert('저장하지 못했습니다: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// 다른 기기에서 바꾼 내용을 반영 (창으로 돌아올 때 새로 읽기)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && serverMode && !editingId) load();
+});
+
+load();
+</script>
+</body>
+</html>
