@@ -109,7 +109,7 @@
   }
   label { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
   label .req { color: var(--danger); }
-  input[type=text], select, textarea {
+  input[type=text], input[type=password], select, textarea {
     width: 100%; font-size: 16px; padding: 11px 12px;
     border: 1px solid var(--line); border-radius: 10px;
     background: var(--card); color: var(--text); font-family: inherit;
@@ -155,6 +155,22 @@
     </div>
     <div class="notice">⚠ 비밀·대외비 내용은 적지 말고 위치만 기록하세요.</div>
     <form id="addForm"></form>
+  </div>
+</div>
+
+<!-- 접근 코드 입력 (배포 사이트에서 처음 한 번) -->
+<div class="sheet" id="codeView">
+  <div class="wrap">
+    <div class="sheet-top"><h1>접근 코드</h1></div>
+    <form id="codeForm">
+      <label for="codeInput" id="codeMsg">접근 코드를 입력하세요 (처음 한 번만)</label>
+      <input type="password" id="codeInput" autocomplete="current-password">
+      <div class="hint">이 기기에 기억되어 다음부터는 묻지 않습니다.</div>
+      <div class="form-actions">
+        <button type="button" class="btn" id="codeSkip">이 브라우저에만 저장</button>
+        <button type="submit" class="btn primary">확인</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -206,11 +222,29 @@ async function loadFromServer() {
       const msg = tries === 0 && !getCode()
         ? '접근 코드를 입력하세요 (처음 한 번만)'
         : '접근 코드가 맞지 않습니다. 다시 입력하세요';
-      const input = prompt(msg);
-      if (input === null || !input.trim()) { setCode(''); throw err; }
-      setCode(input.trim());
+      const input = await askCode(msg);
+      if (!input) { setCode(''); throw err; }
+      setCode(input);
     }
   }
+}
+
+// prompt()는 일부 앱 내 브라우저에서 막히므로 화면 안의 입력 창을 쓴다
+function askCode(msg) {
+  return new Promise((resolve) => {
+    $('codeMsg').textContent = msg;
+    $('codeInput').value = '';
+    $('codeView').classList.add('show');
+    $('codeInput').focus();
+    const done = (value) => {
+      $('codeView').classList.remove('show');
+      $('codeForm').onsubmit = null;
+      $('codeSkip').onclick = null;
+      resolve(value);
+    };
+    $('codeForm').onsubmit = (e) => { e.preventDefault(); done($('codeInput').value.trim() || null); };
+    $('codeSkip').onclick = () => done(null);
+  });
 }
 
 function lsLoad() {
