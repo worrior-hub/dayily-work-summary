@@ -197,8 +197,15 @@ async function load() {
     items = Array.isArray(data) ? data : [];
     serverMode = true;
   } catch {
-    items = lsLoad();
     serverMode = false;
+    let saved = null;
+    try { saved = localStorage.getItem(LS_KEY); } catch {}
+    if (saved === null) {
+      // 처음 여는 브라우저면 시연용 예시 자료로 시작
+      try { items = await fetch('seed.json').then((r) => r.json()); lsSave(); } catch { items = []; }
+    } else {
+      items = lsLoad();
+    }
   }
   $('mode').textContent = serverMode ? '● PC·휴대폰 공용 저장' : '● 이 브라우저에만 저장';
   $('mode').className = 'mode' + (serverMode ? '' : ' local');
